@@ -223,11 +223,19 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .files-header h2 {
       color: #333;
       font-size: 22px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
     }
 
     .files-count {
@@ -237,6 +245,47 @@
       border-radius: 20px;
       font-size: 14px;
       font-weight: 600;
+    }
+
+    .select-all-btn, .delete-selected-btn, .delete-all-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .select-all-btn {
+      background: #4a90e2;
+      color: white;
+    }
+
+    .select-all-btn:hover {
+      background: #357abd;
+      transform: translateY(-2px);
+    }
+
+    .delete-selected-btn {
+      background: #ff6b6b;
+      color: white;
+      display: none;
+    }
+
+    .delete-selected-btn:hover {
+      background: #ee5a52;
+      transform: translateY(-2px);
+    }
+
+    .delete-all-btn {
+      background: #d63031;
+      color: white;
+    }
+
+    .delete-all-btn:hover {
+      background: #c0392b;
+      transform: translateY(-2px);
     }
 
     .uploaded-files-grid {
@@ -252,6 +301,12 @@
       transition: all 0.3s;
       cursor: pointer;
       position: relative;
+      border: 3px solid transparent;
+    }
+
+    .file-card.selected {
+      border-color: #4a90e2;
+      background: #e3f2fd;
     }
 
     .file-card:hover {
@@ -299,10 +354,20 @@
       color: #999;
     }
 
+    .file-checkbox {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      z-index: 10;
+    }
+
     .file-card .delete-btn {
       position: absolute;
-      top: 20px;
-      right: 20px;
+      top: 15px;
+      right: 15px;
       background: rgba(0, 0, 0, 0.9);
       color: white;
       border: none;
@@ -313,6 +378,7 @@
       font-weight: 600;
       transition: all 0.2s;
       opacity: 0;
+      z-index: 10;
     }
 
     .file-card:hover .delete-btn {
@@ -320,7 +386,7 @@
     }
 
     .file-card .delete-btn:hover {
-      background: rgb(128, 128, 128);
+      background: rgb(255, 69, 58);
       transform: scale(1.05);
     }
 
@@ -328,6 +394,7 @@
       text-align: center;
       padding: 60px 20px;
       color: #999;
+      grid-column: 1 / -1;
     }
 
     .empty-state .icon {
@@ -347,12 +414,40 @@
     .loading {
       animation: spin 1s linear infinite;
     }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #2ecc71;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .notification.error {
+      background: #e74c3c;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1> ☁︎ Файловое хранилище</h1>
+      <h1>☁︎ Файловое хранилище</h1>
       <p>Загружайте и управляйте своими файлами</p>
     </div>
 
@@ -378,7 +473,12 @@
 
       <div class="files-header">
         <h2>Загруженные файлы</h2>
-        <span class="files-count" id="filesCount">0</span>
+        <div class="header-actions">
+          <span class="files-count" id="filesCount">0</span>
+          <button class="select-all-btn" id="selectAllBtn">✓ Выбрать все</button>
+          <button class="delete-selected-btn" id="deleteSelectedBtn">🗑️ Удалить выбранные</button>
+          <button class="delete-all-btn" id="deleteAllBtn">🗑️ Удалить всё</button>
+        </div>
       </div>
 
       <div id="uploadedFiles" class="uploaded-files-grid">
@@ -390,18 +490,21 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <script>
-    window.addEventListener('load', function() {
-      if (typeof supabase === 'undefined') {
-        alert('❌ Ошибка загрузки Supabase');
+    window.addEventListener('load', async function() {
+      // Ждём загрузки библиотеки
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (typeof window.supabase === 'undefined') {
+        alert('❌ Ошибка загрузки Supabase. Перезагрузите страницу.');
         return;
       }
 
       const supabaseUrl = 'https://epyutucscivggoitkbnz.supabase.co';
       const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVweXV0dWNzY2l2Z2dvaXRrYm56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxODQ4NjksImV4cCI6MjA3ODc2MDg2OX0.eW-2GJni95aCleqHa85oBpATb8VVj7kBykqqrxFWa4k';
-      const client = supabase.createClient(supabaseUrl, supabaseKey);
+      const client = window.supabase.createClient(supabaseUrl, supabaseKey);
 
       const uploadArea = document.getElementById('uploadArea');
       const fileInput = document.getElementById('fileInput');
@@ -411,8 +514,22 @@
       const progressFill = document.getElementById('progressFill');
       const uploadedFiles = document.getElementById('uploadedFiles');
       const filesCount = document.getElementById('filesCount');
+      const selectAllBtn = document.getElementById('selectAllBtn');
+      const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+      const deleteAllBtn = document.getElementById('deleteAllBtn');
 
       let selectedFiles = [];
+      let selectedForDeletion = new Set();
+      let allFiles = [];
+
+      // Уведомления
+      function showNotification(message, isError = false) {
+        const notification = document.createElement('div');
+        notification.className = 'notification' + (isError ? ' error' : '');
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+      }
 
       // Клик по зоне загрузки
       uploadArea.addEventListener('click', () => fileInput.click());
@@ -516,6 +633,8 @@
           progressFill.textContent = progress + '%';
         }
 
+        showNotification(`✅ Загружено файлов: ${uploaded} из ${total}`);
+
         setTimeout(() => {
           progressContainer.style.display = 'none';
           progressFill.style.width = '0%';
@@ -527,6 +646,84 @@
           loadFilesList();
         }, 500);
       });
+
+      // Выбрать все
+      selectAllBtn.addEventListener('click', () => {
+        if (selectedForDeletion.size === allFiles.length) {
+          selectedForDeletion.clear();
+          selectAllBtn.textContent = '✓ Выбрать все';
+        } else {
+          allFiles.forEach(file => selectedForDeletion.add(file.name));
+          selectAllBtn.textContent = '✗ Снять выбор';
+        }
+        updateSelectionUI();
+      });
+
+      // Удалить выбранные
+      deleteSelectedBtn.addEventListener('click', async () => {
+        if (selectedForDeletion.size === 0) return;
+
+        const count = selectedForDeletion.size;
+        if (!confirm(`Удалить выбранные файлы (${count} шт.)?`)) return;
+
+        const filesToDelete = Array.from(selectedForDeletion);
+        
+        try {
+          const { error } = await client.storage.from('uploads').remove(filesToDelete);
+          
+          if (!error) {
+            showNotification(`✅ Удалено файлов: ${count}`);
+            selectedForDeletion.clear();
+            loadFilesList();
+          } else {
+            showNotification('❌ Ошибка удаления: ' + error.message, true);
+          }
+        } catch (e) {
+          showNotification('❌ Ошибка: ' + e.message, true);
+        }
+      });
+
+      // Удалить всё
+      deleteAllBtn.addEventListener('click', async () => {
+        if (allFiles.length === 0) {
+          showNotification('⚠️ Нет файлов для удаления', true);
+          return;
+        }
+
+        if (!confirm(`Вы уверены? Будут удалены ВСЕ файлы (${allFiles.length} шт.)!`)) return;
+
+        const filesToDelete = allFiles.map(f => f.name);
+        
+        try {
+          const { error } = await client.storage.from('uploads').remove(filesToDelete);
+          
+          if (!error) {
+            showNotification(`✅ Удалено всех файлов: ${filesToDelete.length}`);
+            selectedForDeletion.clear();
+            loadFilesList();
+          } else {
+            showNotification('❌ Ошибка удаления: ' + error.message, true);
+          }
+        } catch (e) {
+          showNotification('❌ Ошибка: ' + e.message, true);
+        }
+      });
+
+      function updateSelectionUI() {
+        document.querySelectorAll('.file-card').forEach(card => {
+          const fileName = card.dataset.filename;
+          if (selectedForDeletion.has(fileName)) {
+            card.classList.add('selected');
+            card.querySelector('.file-checkbox').checked = true;
+          } else {
+            card.classList.remove('selected');
+            card.querySelector('.file-checkbox').checked = false;
+          }
+        });
+
+        deleteSelectedBtn.style.display = selectedForDeletion.size > 0 ? 'block' : 'none';
+        selectAllBtn.textContent = selectedForDeletion.size === allFiles.length && allFiles.length > 0 ? '✗ Снять выбор' : '✓ Выбрать все';
+      }
 
       // Список файлов
       async function loadFilesList() {
@@ -540,22 +737,41 @@
             return;
           }
 
-          const files = data.filter(f => f.name !== '.emptyFolderPlaceholder');
-          filesCount.textContent = files.length;
+          allFiles = data.filter(f => f.name !== '.emptyFolderPlaceholder');
+          filesCount.textContent = allFiles.length;
 
-          if (files.length === 0) {
+          if (allFiles.length === 0) {
             uploadedFiles.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Файлов пока нет</p></div>';
+            deleteAllBtn.style.display = 'none';
+            selectAllBtn.style.display = 'none';
             return;
           }
 
+          deleteAllBtn.style.display = 'block';
+          selectAllBtn.style.display = 'block';
           uploadedFiles.innerHTML = '';
 
-          for (let file of files) {
+          for (let file of allFiles) {
             const { data: urlData } = client.storage.from('uploads').getPublicUrl(file.name);
             
             const card = document.createElement('div');
             card.className = 'file-card';
-            card.onclick = () => window.open(urlData.publicUrl, '_blank');
+            card.dataset.filename = file.name;
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'file-checkbox';
+            checkbox.checked = selectedForDeletion.has(file.name);
+            checkbox.onclick = (e) => {
+              e.stopPropagation();
+              if (selectedForDeletion.has(file.name)) {
+                selectedForDeletion.delete(file.name);
+              } else {
+                selectedForDeletion.add(file.name);
+              }
+              updateSelectionUI();
+            };
+            card.appendChild(checkbox);
 
             const isImage = /\.(jpg|jpeg|png|gif)$/i.test(file.name);
 
@@ -587,26 +803,31 @@
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-btn';
-            deleteBtn.textContent = '🗑️ Удалить';
+            deleteBtn.textContent = '🗑️';
             deleteBtn.onclick = async (e) => {
               e.stopPropagation();
               if (!confirm('Удалить файл ' + file.name + '?')) return;
               
               const { error } = await client.storage.from('uploads').remove([file.name]);
               if (!error) {
-                card.remove();
-                filesCount.textContent = parseInt(filesCount.textContent) - 1;
-                if (uploadedFiles.children.length === 0) {
-                  uploadedFiles.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Файлов пока нет</p></div>';
-                }
+                showNotification('✅ Файл удалён');
+                selectedForDeletion.delete(file.name);
+                loadFilesList();
               } else {
-                alert('Ошибка удаления: ' + error.message);
+                showNotification('❌ Ошибка удаления: ' + error.message, true);
               }
             };
             card.appendChild(deleteBtn);
 
+            card.onclick = (e) => {
+              if (e.target === checkbox || e.target === deleteBtn) return;
+              window.open(urlData.publicUrl, '_blank');
+            };
+
             uploadedFiles.appendChild(card);
           }
+
+          updateSelectionUI();
         } catch (e) {
           uploadedFiles.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>' + e.message + '</p></div>';
         }
